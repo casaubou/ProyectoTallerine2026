@@ -1,0 +1,12 @@
+#N canvas 316 75 950 406 12;
+#X obj 321 171 netreceive -u -b 9000;
+#X obj 321 213 oscparse;
+#X obj 320 260 list trim;
+#X obj 320 295 route gesture;
+#X obj 320 325 route open_hand fist peace thumbs_up;
+#X obj 239 327 print;
+#X connect 0 0 1 0;
+#X connect 1 0 2 0;
+#X connect 2 0 3 0;
+#X connect 3 0 4 0;
+#X connect 3 0 5 0;
