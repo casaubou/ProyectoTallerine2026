@@ -13,11 +13,11 @@ from pythonosc.udp_client import SimpleUDPClient
 client = SimpleUDPClient("127.0.0.1", 9000)
 
 # =========================================================
-# UMBRALES
+# UMBRALES --- AJUSTAR LUEGO
 # =========================================================
 
-BLINK_THRESHOLD = 0.4
-BROWS_THRESHOLD = 0.4
+BLINK_THRESHOLD = 0.5
+BROWS_THRESHOLD = 0.7
 
 # =========================================================
 # ARGUMENTOS
@@ -118,6 +118,7 @@ with FaceLandmarker.create_from_options(options) as landmarker:
         left_text = "Left Blink: ---"
         right_text = "Right Blink: ---"
         brow_text = "Brows Up: ---"
+
         # =================================================
         # DETECCIÓN
         # =================================================
@@ -156,36 +157,43 @@ with FaceLandmarker.create_from_options(options) as landmarker:
 
             # CEJAS 
 
-            brows_up = next(
-                (
-                    b for b in blendshapes
-                    if b.category_name == "browOuterUpRight"
-                    or 
-                    b.category_name == "browOuterUpLeft" 
-                    or
-                    b.category_name == "brow_inner_up"
+        brows_up = next(
+            (
+                b for b in blendshapes
+                if b.category_name == "browOuterUpRight"
+                    or b.category_name == "browOuterUpLeft" 
+                    or b.category_name == "browInnerUp"
 
-                    # Se fija si se levanta alguna ceja
-                ),
-                None
+                # Se fija si se levanta alguna ceja
+            ),
+            None
             )
             
             # =============================================
             # BROWS UP ----> DISCRETO
             # =============================================
 
-            if brows_up:
+        if brows_up:
 
-                brows_score = brows_up.score
-                new_brows_up_state = int(brows_score > BROWS_THRESHOLD)
+            brows_score = brows_up.score
 
-                if brows_up_state != new_brows_up_state:
-                    brows_up_state = new_brows_up_state
+            new_brows_up_state = int(brows_score > BROWS_THRESHOLD)
 
-                client.send_message("/browsUp", brows_up_state)
-                brow_text = (
-                f"Brows up: {brows_up_state}"
-            )
+   
+            if(
+                brows_up_state == 0 and
+                new_brows_up_state == 1):
+
+                client.send_message(
+                "/browsUp",
+                1
+        )
+
+            brows_up_state = new_brows_up_state
+
+            brow_text = (
+            f"Brows Up: {brows_up_state}"
+    )
 
                 
             # =============================================
@@ -214,18 +222,20 @@ with FaceLandmarker.create_from_options(options) as landmarker:
             if left_blink:
 
                 left_score = left_blink.score
-
-            new_left_state = int(
-            left_score > BLINK_THRESHOLD
-)
+                new_left_state = int(left_score > BLINK_THRESHOLD)
+                
 
             if new_left_state != blink_left_state:
 
-                blink_left_state = new_left_state
+                if (blink_left_state == 0 and new_left_state == 1):
+                    client.send_message("/blinkLeft",1)
 
-            client.send_message(
-            "/blinkLeft",
-            blink_left_state
+            blink_left_state = new_left_state
+
+            if blink_left_state != 0:
+                client.send_message(
+                "/blinkLeft",
+                blink_left_state
             )
 
             left_text = (
@@ -239,18 +249,21 @@ with FaceLandmarker.create_from_options(options) as landmarker:
             if right_blink:
 
                 right_score = right_blink.score
-
-            new_right_state = int(
-            right_score > BLINK_THRESHOLD
-            )
+                new_right_state = int(right_score > BLINK_THRESHOLD)
+               
 
             if new_right_state != blink_right_state:
 
-                blink_right_state = new_right_state
+                if (blink_right_state == 0 and
+                    new_right_state == 1):
+                    client.send_message("/blinkRight",1)
 
-            client.send_message(
-            "/blinkRight",
-            blink_right_state
+            blink_right_state = new_right_state
+
+            if blink_right_state != 0:
+                client.send_message(
+                "/blinkRight",
+                blink_right_state
             )
 
             right_text = (
@@ -278,7 +291,7 @@ with FaceLandmarker.create_from_options(options) as landmarker:
                         )
 
         # =================================================
-        # INTERFAZ
+        # INTERFAZ USUARIO
         # =================================================
 
         cv2.rectangle(
@@ -327,10 +340,11 @@ with FaceLandmarker.create_from_options(options) as landmarker:
             (20, 160),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
-            (255, 0, 255),
+            (0, 0, 255),
             2,
             cv2.LINE_AA,
-        )
+        ),
+
         # Mostrar frame
         cv2.imshow(
             "Face Gesture Detector + OSC",
