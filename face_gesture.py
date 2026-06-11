@@ -16,7 +16,7 @@ client = SimpleUDPClient("127.0.0.1", 9000)
 # UMBRALES --- AJUSTAR LUEGO
 # =========================================================
 
-BLINK_THRESHOLD = 0.5
+BLINK_THRESHOLD = 0.6
 BROWS_THRESHOLD = 0.7
 
 # =========================================================
@@ -88,8 +88,8 @@ with FaceLandmarker.create_from_options(options) as landmarker:
             print("Error: no se puede recibir video.")
             break
 
-        # Efecto espejo
-        frame = cv2.flip(frame, 1)
+        # Efecto espejo (desactivamos)
+        # frame = cv2.flip(frame, 1)
 
         h, w, _ = frame.shape
 
@@ -157,16 +157,16 @@ with FaceLandmarker.create_from_options(options) as landmarker:
 
             # CEJAS 
 
-        brows_up = next(
-            (
-                b for b in blendshapes
-                if b.category_name == "browOuterUpRight"
-                    or b.category_name == "browOuterUpLeft" 
-                    or b.category_name == "browInnerUp"
+            brows_up = next(
+                (
+                    b for b in blendshapes
+                    if b.category_name == "browOuterUpRight"
+                        or b.category_name == "browOuterUpLeft" 
+                        or b.category_name == "browInnerUp"
 
                 # Se fija si se levanta alguna ceja
-            ),
-            None
+                ),
+                None
             )
             
             # =============================================
@@ -216,78 +216,83 @@ with FaceLandmarker.create_from_options(options) as landmarker:
                     jaw_text = f"Jaw closed ({jaw_score:.2f})"
 
             # =============================================
-            # LEFT BLINK ----> DISCRETO
+            # CALCULAR ESTADOS DE LOS DOS OJOS
             # =============================================
 
-            if left_blink:
+            left_score = 0
+            right_score = 0
 
+            if left_blink:
                 left_score = left_blink.score
-                new_left_state = int(left_score > BLINK_THRESHOLD)
-                
+
+            if right_blink:
+                right_score = right_blink.score
+
+            new_left_state = int(left_score > BLINK_THRESHOLD)
+            new_right_state = int(right_score > BLINK_THRESHOLD)
+
+            # =============================================
+            # RESOLVER CONFLICTO
+            # =============================================
+
+            if new_left_state and new_right_state:
+
+                # Se queda con el ojo más cerrado
+                if left_score > right_score:
+                    new_right_state = 0
+                else:
+                    new_left_state = 0
+
+            # =============================================
+            # LEFT BLINK
+            # =============================================
 
             if new_left_state != blink_left_state:
 
-                if (blink_left_state == 0 and new_left_state == 1):
-                    client.send_message("/blinkLeft",1)
+                if blink_left_state == 0 and new_left_state == 1:
+                    client.send_message("/blinkLeft", 1)
 
             blink_left_state = new_left_state
 
-            if blink_left_state != 0:
-                client.send_message(
-                "/blinkLeft",
-                blink_left_state
-            )
-
             left_text = (
-            f"Left Blink: {blink_left_state}"
+                f"Left Blink: {blink_left_state}"
             )
 
             # =============================================
-            # RIGHT BLINK ----> DISCRETO
+            # RIGHT BLINK
             # =============================================
-
-            if right_blink:
-
-                right_score = right_blink.score
-                new_right_state = int(right_score > BLINK_THRESHOLD)
-               
 
             if new_right_state != blink_right_state:
 
-                if (blink_right_state == 0 and
-                    new_right_state == 1):
-                    client.send_message("/blinkRight",1)
+                if blink_right_state == 0 and new_right_state == 1:
+                    client.send_message("/blinkRight", 1)
 
             blink_right_state = new_right_state
 
-            if blink_right_state != 0:
-                client.send_message(
-                "/blinkRight",
-                blink_right_state
+            right_text = (
+                f"Right Blink: {blink_right_state}"
             )
 
-            right_text = (
-            f"Right Blink: {blink_right_state}"
-            )
+
             # =============================================
             # LANDMARKS
             # =============================================
 
-            if args.show_landmarks and result.face_landmarks:
+        if args.show_landmarks and result.face_landmarks:
 
-                for face_landmarks in result.face_landmarks:
+            for face_landmarks in result.face_landmarks:
 
-                    for landmark in face_landmarks:
+                for landmark in face_landmarks:
 
-                        cx = int(landmark.x * w)
-                        cy = int(landmark.y * h)
+                    cx = int(landmark.x * w)
+                    cy = int(landmark.y * h)
 
-                        cv2.circle(
-                            frame,
-                            (cx, cy),
-                            1,
-                            (0, 255, 0),
-                            -1
+                    cv2.circle(
+                        frame,
+                        (cx, cy),
+                        1,
+                        (0, 255, 0),
+                        -1
                         )
 
         # =================================================
